@@ -1,20 +1,20 @@
 import time
 import os
 import requests
-import pandas as pd
 from tradingview_ta import TA_Handler, Interval
 
-# ====== CONFIG (ENV VARS USE KARO) ======
 TELEGRAM_TOKEN = os.getenv("TG_TOKEN")
 CHAT_ID = os.getenv("TG_CHAT_ID")
 
 SYMBOL = "EURUSD"
 EXCHANGE = "FX_IDC"
-INTERVAL = Interval.INTERVAL_1_MINUTE  # 1 minute scalping
+INTERVAL = Interval.INTERVAL_1_MINUTE
 
 def send(msg):
+    if not TELEGRAM_TOKEN or not CHAT_ID:
+        return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg}, timeout=10)
 
 def get_signal():
     try:
@@ -33,19 +33,28 @@ def get_signal():
             return None
 
         if rsi > 55 and ema10 > ema20:
-            return "📈 BUY (1m)"
+            return "📈 BUY (EURUSD 1m)"
         if rsi < 45 and ema10 < ema20:
-            return "📉 SELL (1m)"
+            return "📉 SELL (EURUSD 1m)"
         return None
     except Exception:
         return None
 
+send("🤖 Bot connected successfully")
+
 last = None
-send("🤖 Bot started (EURUSD 1m)")
+last_ping = time.time()
 
 while True:
     sig = get_signal()
+
     if sig and sig != last:
-        send(f"{sig}\nPair: EURUSD\nTF: 1 Minute")
+        send(sig)
         last = sig
+
+    # heartbeat (every 5 minutes)
+    if time.time() - last_ping > 300:
+        send("✅ Bot running (waiting for signal)")
+        last_ping = time.time()
+
     time.sleep(30)
